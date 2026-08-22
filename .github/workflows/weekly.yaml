@@ -1,0 +1,114 @@
+name: Weekly Ladybird Build
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 2am UTC every Sunday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          xcode-select --install || true
+          brew install autoconf autoconf-archive automake ccache cmake \
+            libtool nasm ninja pkg-config llvm@21
+
+      - name: Clone Ladybird
+        run: git clone https://github.com/LadybirdBrowser/ladybird.git
+
+      - name: Build
+        working-directory: ladybird
+        run: |
+          CC=$(brew --prefix llvm)/bin/clang \
+          CXX=$(brew --prefix llvm)/bin/clang++ \
+          ./Meta/ladybird.py build
+
+      - name: Package
+        run: |
+          zip -r ladybird-macos.zip ladybird/Build/release/bin/Ladybird.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-macos
+          path: ladybird-macos.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install CMake 3.30+
+        run: |
+          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
+            | gpg --dearmor - \
+            | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] \
+            https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" \
+            | sudo tee /etc/apt/sources.list.d/kitware.list
+          sudo apt update -y && sudo apt install cmake -y
+
+      - name: Install clang-21
+        run: |
+          sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] \
+            https://apt.llvm.org/$(lsb_release -sc)/ \
+            llvm-toolchain-$(lsb_release -sc)-21 main" \
+            | sudo tee -a /etc/apt/sources.list.d/llvm.list
+          sudo apt update -y && sudo apt install clang-21 lld-21 -y
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y autoconf autoconf-archive automake build-essential \
+            ccache curl fonts-liberation2 git libdrm-dev libgl1-mesa-dev \
+            libtool nasm ninja-build pkg-config python3-venv \
+            qt6-base-dev qt6-tools-dev-tools qt6-wayland \
+            tar unzip zip libpulse-dev
+
+      - name: Clone Ladybird
+        run: git clone https://github.com/LadybirdBrowser/ladybird.git
+
+      - name: Build
+        working-directory: ladybird
+        run: ./Meta/ladybird.py build
+
+      - name: Package
+        run: |
+          tar -czf ladybird-linux.tar.gz ladybird/Build/release/bin/Ladybird
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-linux
+          path: ladybird-linux.tar.gz
+
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Get date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Publish nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: weekly
+          name: "Weekly Build ${{ env.DATE }}"
+          body: |
+            Unofficial weekly build of [LadybirdBrowser/ladybird](https://github.com/LadybirdBrowser/ladybird) — main branch.
+
+            **Not affiliated with the Ladybird project.**
+            macOS users: right-click > Open to bypass Gatekeeper.
+
+            Built: ${{ env.DATE }}
+          prerelease: true
+          files: |
+            ladybird-macos/ladybird-macos.zip
+            ladybird-linux/ladybird-linux.tar.gz
