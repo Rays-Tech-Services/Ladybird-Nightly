@@ -67,11 +67,14 @@ jobs:
             libtool nasm ninja-build pkg-config python3-venv python3-pip \
             tar unzip zip libpulse-dev bison libxkbcommon-dev
 
-      - name: Install Qt 6.9 via aqtinstall
-        run: |
-          pip install aqtinstall --break-system-packages
-          aqt install-qt linux desktop 6.9.0 gcc_64 -O $HOME/Qt
-          echo "CMAKE_PREFIX_PATH=$HOME/Qt/6.9.0/gcc_64" >> $GITHUB_ENV
+      - name: Install Qt 6.9
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.9.0'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          install-deps: 'true'
 
       - name: Clone Ladybird
         run: git clone https://github.com/LadybirdBrowser/ladybird.git
