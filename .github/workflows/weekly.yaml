@@ -67,7 +67,7 @@ jobs:
             libtool nasm ninja-build pkg-config python3-venv python3-pip \
             tar unzip zip libpulse-dev bison libxkbcommon-dev
 
-      - name: Install Qt 6.9
+- name: Install Qt 6.9
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.0'
@@ -75,6 +75,7 @@ jobs:
           target: 'desktop'
           arch: 'linux_gcc_64'
           install-deps: 'true'
+          modules: 'qtpositioning'
 
       - name: Clone Ladybird
         run: git clone https://github.com/LadybirdBrowser/ladybird.git
