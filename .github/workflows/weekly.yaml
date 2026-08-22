@@ -67,7 +67,7 @@ jobs:
             libtool nasm ninja-build pkg-config python3-venv python3-pip \
             tar unzip zip libpulse-dev bison libxkbcommon-dev
 
-- name: Install Qt 6.9
+      - name: Install Qt 6.9
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.0'
